@@ -36,16 +36,9 @@ def get_sim():
     ########################## entities ##########################
 
     bunny = scene.add_entity(
-        material=mat_elastic,
-        morph=gs.morphs.Mesh(
-            file="meshes/dragon/dragon.obj",
-            scale=0.003,
-            pos=(0, 0, 2.0),
-        ),
-        surface=gs.surfaces.Default(
-            # vis_mode='recon',
-        ),
+        gs.morphs.MJCF(file="xml/franka_emika_panda/panda.xml")
     )
+    
     ########################## build ##########################
 
     return scene
