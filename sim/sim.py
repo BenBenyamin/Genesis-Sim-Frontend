@@ -40,7 +40,7 @@ def get_sim():
         morph=gs.morphs.Mesh(
             file="meshes/dragon/dragon.obj",
             scale=0.003,
-            pos=(0, 0, 0.8),
+            pos=(0, 0, 2.0),
         ),
         surface=gs.surfaces.Default(
             # vis_mode='recon',

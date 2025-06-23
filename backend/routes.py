@@ -6,7 +6,7 @@ import numpy as np
 import threading, os, sys, cv2
 from flask import Flask, jsonify
 from flask_cors import CORS
-from flask_socketio import SocketIO
+from flask_socketio import SocketIO , emit
 
 # bring sim+wrapper into path
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
@@ -65,14 +65,26 @@ def emit_frames():
 
 @socketio.on('connect')
 def on_connect():
+    
+    if simulation_ready:
+        emit('ready')
+
     print("👤 Client connected; starting stream task.")
     socketio.emit('frame', blank_bytes)
     socketio.start_background_task(emit_frames)
 
+
+@socketio.on('pause')
+def on_pause():
+    wrap.paused = True
+
+@socketio.on('resume')
+def on_resume():
+    wrap.paused = False
 # ─── Run server ────────────────────────────────────────────────────────────────
 if __name__ == '__main__':
     socketio.run(app,
                  host='0.0.0.0',
                  port=5001,
-                 debug=True,
+                 debug=False,
                  use_reloader=False)
