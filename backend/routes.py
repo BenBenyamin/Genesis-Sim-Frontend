@@ -1,66 +1,68 @@
-import eventlet                                            # ── NEW
-eventlet.monkey_patch()                                   # ── NEW
+import eventlet
+eventlet.monkey_patch()  # ← must come first
 
-import os
-import sys
-import cv2
-
+import threading, os, sys, cv2
 from flask import Flask, jsonify
 from flask_cors import CORS
 from flask_socketio import SocketIO
 
-# bring your sim and wrapper into path
-parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-sys.path.insert(0, parent_dir)
-
+# bring sim+wrapper into path
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+sys.path.insert(0, project_root)
 from sim.sim import get_sim
 from wrapper.wrapper import GenesisSceneVideoStream
 
-# ─── App & SocketIO init ──────────────────────────────────────────────────────
 app = Flask(__name__)
 CORS(app)
-socketio = SocketIO(
-    app,
-    cors_allowed_origins="*",
-    async_mode="eventlet",        # ── ENSURES eventlet WSGI + WebSocket, no threads
-)
+socketio = SocketIO(app,
+                    cors_allowed_origins="*",
+                    async_mode="eventlet")
 
-# ─── Genesis + Wrapper ─────────────────────────────────────────────────────────
-scene = get_sim()
-wrap = GenesisSceneVideoStream(
-    genesis_scene=scene,
-    n_frames=200,
-    fps=30,
-)
+# ─── Build the simulation in the background ───────────────────────────────────
+simulation_ready = False
+wrap = None
 
-# ─── Simple HTTP route ─────────────────────────────────────────────────────────
+def build_sim():
+    global wrap, simulation_ready
+    scene = get_sim()  # expensive
+    wrap = GenesisSceneVideoStream(scene, n_frames=200, fps=30)
+    simulation_ready = True
+    print("✅ Genesis initialized, ready to stream.")
+
+threading.Thread(target=build_sim, daemon=True).start()
+
+# ─── Healthcheck so client knows when to open WS ──────────────────────────────
+@app.route('/api/ready')
+def ready():
+    return jsonify(ready=simulation_ready)
+
 @app.route('/api/hello')
 def hello():
-    return jsonify(message='Hello from Python!')
+    return jsonify(message="Server is alive!")
 
 # ─── Frame emitter ─────────────────────────────────────────────────────────────
 def emit_frames():
-    """Background greenthread: grab frames and emit them."""
+    # wait until simulation is up
+    while not simulation_ready:
+        socketio.sleep(0.1)
+
     for frame in wrap.get_frame():
         bgr = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
-        success, buf = cv2.imencode('.jpg', bgr)
-        if not success:
+        ok, buf = cv2.imencode('.jpg', bgr)
+        if not ok:
             continue
         socketio.emit('frame', buf.tobytes())
         socketio.sleep(1.0 / wrap.fps)
 
 @socketio.on('connect')
 def on_connect():
-    # starts the greenthread on client connect
+    print("👤 Client connected; starting stream task.")
     socketio.start_background_task(emit_frames)
 
-# ─── Start server ──────────────────────────────────────────────────────────────
+# ─── Run server ────────────────────────────────────────────────────────────────
 if __name__ == '__main__':
-    # eventlet’s single-process WSGI+WebSocket server, no Python threads
-    socketio.run(
-        app,
-        host='0.0.0.0',
-        port=5001,
-        debug=True,
-        use_reloader=False           # ── avoid double-spawn in dev
-    )
+    socketio.run(app,
+                 host='0.0.0.0',
+                 port=5001,
+                 debug=True,
+                 use_reloader=False)
