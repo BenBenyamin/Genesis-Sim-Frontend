@@ -1,60 +1,71 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { io } from 'socket.io-client';
 
-// Adjust this URL if your backend is hosted elsewhere
-const SOCKET_SERVER_URL = 'http://localhost:5001';
+const SERVER = 'http://127.0.0.1:5001';
 
-function App() {
-  const canvasRef = useRef(null);
-  const socketRef = useRef(null);
+export default function App() {
+  const canvasRef = useRef();
+  const socketRef = useRef();
+  const [ready, setReady] = useState(false);
 
+  // 1) Poll /api/ready until the backend is ready
   useEffect(() => {
+    let timer;
+    const checkReady = async () => {
+      try {
+        const res = await fetch(`${SERVER}/api/ready`);
+        const { ready } = await res.json();
+        if (ready) setReady(true);
+        else timer = setTimeout(checkReady, 500);
+      } catch {
+        timer = setTimeout(checkReady, 500);
+      }
+    };
+    checkReady();
+    return () => clearTimeout(timer);
+  }, []);
+
+  // 2) Once ready, open Socket.IO (allows polling → websocket upgrade)
+  useEffect(() => {
+    if (!ready) return;
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
 
-    // Connect to Flask-SocketIO server
-    socketRef.current = io(SOCKET_SERVER_URL, {
-      transports: ['websocket'],
-      reconnectionAttempts: 5,
+    socketRef.current = io(SERVER, {
+      transports: ['polling', 'websocket'], // ← allow fallback
+      reconnection: true,
+      reconnectionAttempts: Infinity,
+      reconnectionDelay: 1000,
     });
-
-    // Tell socket to expect binary data
     socketRef.current.binaryType = 'arraybuffer';
 
     socketRef.current.on('connect', () => {
-      console.log('Connected to video stream server');
+      console.log('🟢 Socket connected:', socketRef.current.id);
     });
 
     socketRef.current.on('frame', (arrayBuffer) => {
-      // Convert raw bytes into an image blob
       const blob = new Blob([arrayBuffer], { type: 'image/jpeg' });
       const img = new Image();
-      const url = URL.createObjectURL(blob);
-
       img.onload = () => {
-        // Draw the frame into the canvas
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-
-        // Clean up
-        URL.revokeObjectURL(url);
+        URL.revokeObjectURL(img.src);
       };
-
-      img.src = url;
+      img.src = URL.createObjectURL(blob);
     });
 
     socketRef.current.on('disconnect', () => {
-      console.log('Disconnected from video stream server');
+      console.log('🔴 Socket disconnected');
     });
 
     return () => {
-      // Cleanup on unmount
       socketRef.current.disconnect();
     };
-  }, []);
+  }, [ready]);
 
   return (
-    <div className="App">
+    <div style={{ textAlign: 'center' }}>
+      {!ready && <p>Loading simulation…</p>}
       <canvas
         ref={canvasRef}
         width={1280}
@@ -64,5 +75,3 @@ function App() {
     </div>
   );
 }
-
-export default App;
