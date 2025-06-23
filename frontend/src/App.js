@@ -1,49 +1,24 @@
-import React, { useEffect, useRef, useState } from 'react';
+// src/App.js
+
+import React, { useEffect, useRef } from 'react';
 import { io } from 'socket.io-client';
 
 const SERVER = 'http://127.0.0.1:5001';
 
 export default function App() {
-  const canvasRef = useRef();
-  const socketRef = useRef();
-  const [ready, setReady] = useState(false);
+  const canvasRef = useRef(null);
+  const socketRef = useRef(null);
 
-  // 1) Poll /api/ready until the backend is ready
   useEffect(() => {
-    let timer;
-    const checkReady = async () => {
-      try {
-        const res = await fetch(`${SERVER}/api/ready`);
-        const { ready } = await res.json();
-        if (ready) setReady(true);
-        else timer = setTimeout(checkReady, 500);
-      } catch {
-        timer = setTimeout(checkReady, 500);
-      }
-    };
-    checkReady();
-    return () => clearTimeout(timer);
-  }, []);
-
-  // 2) Once ready, open Socket.IO (allows polling → websocket upgrade)
-  useEffect(() => {
-    if (!ready) return;
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
 
-    socketRef.current = io(SERVER, {
-      transports: ['polling', 'websocket'], // ← allow fallback
-      reconnection: true,
-      reconnectionAttempts: Infinity,
-      reconnectionDelay: 1000,
-    });
-    socketRef.current.binaryType = 'arraybuffer';
+    // Draw a gray placeholder immediately
+    ctx.fillStyle = '#000000';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    socketRef.current.on('connect', () => {
-      console.log('🟢 Socket connected:', socketRef.current.id);
-    });
-
-    socketRef.current.on('frame', (arrayBuffer) => {
+    // Handler to draw incoming frames
+    const handleFrame = (arrayBuffer) => {
       const blob = new Blob([arrayBuffer], { type: 'image/jpeg' });
       const img = new Image();
       img.onload = () => {
@@ -52,25 +27,47 @@ export default function App() {
         URL.revokeObjectURL(img.src);
       };
       img.src = URL.createObjectURL(blob);
+    };
+
+    // Connect to the Socket.IO server immediately
+    const socket = io(SERVER, {
+      transports: ['polling', 'websocket'],  // fallback → WS upgrade
+      reconnection: true,
+      reconnectionAttempts: Infinity,
+      reconnectionDelay: 1000,
+    });
+    socket.binaryType = 'arraybuffer';
+    socketRef.current = socket;
+
+    socket.on('connect', () => {
+      console.log('🟢 Socket connected:', socket.id);
     });
 
-    socketRef.current.on('disconnect', () => {
-      console.log('🔴 Socket disconnected');
+    socket.on('connect_error', (err) => {
+      console.warn('🔄 Connection error, retrying…', err.message);
+    });
+
+    socket.on('frame', handleFrame);
+
+    socket.on('disconnect', (reason) => {
+      console.log('🔴 Socket disconnected:', reason);
     });
 
     return () => {
-      socketRef.current.disconnect();
+      socket.disconnect();
     };
-  }, [ready]);
+  }, []);
 
   return (
     <div style={{ textAlign: 'center' }}>
-      {!ready && <p>Loading simulation…</p>}
       <canvas
         ref={canvasRef}
         width={1280}
         height={720}
-        style={{ border: '1px solid #000' }}
+        style={{
+          border: '1px solid #000',
+          backgroundColor: '#7b7b7b',  // matches the gray placeholder
+        }}
       />
     </div>
   );

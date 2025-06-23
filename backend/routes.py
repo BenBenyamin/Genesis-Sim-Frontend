@@ -1,6 +1,8 @@
 import eventlet
 eventlet.monkey_patch()  # ← must come first
 
+import numpy as np
+
 import threading, os, sys, cv2
 from flask import Flask, jsonify
 from flask_cors import CORS
@@ -18,6 +20,12 @@ socketio = SocketIO(app,
                     cors_allowed_origins="*",
                     async_mode="eventlet")
 
+
+# precompute your blank JPEG once
+_blank = np.zeros((720, 1280, 3), dtype=np.uint8)
+_, blank_buf = cv2.imencode('.jpg', _blank)
+blank_bytes = blank_buf.tobytes()
+
 # ─── Build the simulation in the background ───────────────────────────────────
 simulation_ready = False
 wrap = None
@@ -25,9 +33,9 @@ wrap = None
 def build_sim():
     global wrap, simulation_ready
     scene = get_sim()  # expensive
-    wrap = GenesisSceneVideoStream(scene, n_frames=200, fps=30)
+    wrap = GenesisSceneVideoStream(scene, n_frames=200, fps=40)
     simulation_ready = True
-    print("✅ Genesis initialized, ready to stream.")
+    socketio.emit('ready')
 
 threading.Thread(target=build_sim, daemon=True).start()
 
@@ -44,6 +52,7 @@ def hello():
 def emit_frames():
     # wait until simulation is up
     while not simulation_ready:
+        socketio.emit('frame', blank_bytes)
         socketio.sleep(0.1)
 
     for frame in wrap.get_frame():
@@ -52,11 +61,12 @@ def emit_frames():
         if not ok:
             continue
         socketio.emit('frame', buf.tobytes())
-        socketio.sleep(1.0 / wrap.fps)
+        socketio.sleep(0.1 / wrap.fps)
 
 @socketio.on('connect')
 def on_connect():
     print("👤 Client connected; starting stream task.")
+    socketio.emit('frame', blank_bytes)
     socketio.start_background_task(emit_frames)
 
 # ─── Run server ────────────────────────────────────────────────────────────────

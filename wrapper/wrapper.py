@@ -1,4 +1,4 @@
-
+from time import sleep
 class GenesisSceneVideoStream:
 
         def __init__(self, genesis_scene, n_frames = 1000 , fps = 30):
