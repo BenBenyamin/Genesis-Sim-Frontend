@@ -81,6 +81,10 @@ def on_pause():
 @socketio.on('resume')
 def on_resume():
     wrap.paused = False
+
+
+
+
 # ─── Run server ────────────────────────────────────────────────────────────────
 if __name__ == '__main__':
     socketio.run(app,

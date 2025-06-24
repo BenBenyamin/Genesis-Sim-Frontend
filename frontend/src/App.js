@@ -5,6 +5,8 @@ import { io } from 'socket.io-client';
 
 const SERVER = 'http://127.0.0.1:5001';
 
+var mouse_x, mouse_y;
+
 export default function App() {
   const canvasRef = useRef(null);
   const socketRef = useRef(null);
@@ -21,7 +23,7 @@ export default function App() {
 
     // force a brand-new socket connection
     const socket = io(SERVER, {
-      transports: ['polling','websocket'],
+      transports: ['polling', 'websocket'],
       forceNew: true,
       reconnection: true,
       reconnectionAttempts: Infinity,
@@ -37,12 +39,10 @@ export default function App() {
     socket.on('connect_error', (err) => console.error('connect_error', err));
 
     socket.on('frame', (buf) => {
-      // console.log('frame received', buf.byteLength, 'bytes');
       if (!firstFrame) {
         firstFrame = true;
         setReady(true);
       }
-      // draw it
       const blob = new Blob([buf], { type: 'image/jpeg' });
       const img = new Image();
       img.onload = () => {
@@ -67,6 +67,31 @@ export default function App() {
       setIsPaused(true);
     }
   };
+  const handleMouseMove = (e) => {
+    const canvas = canvasRef.current;
+    const rect = canvas.getBoundingClientRect();
+    // account for any CSS scaling
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    mouse_x = Math.round((e.clientX - rect.left) * scaleX);
+    mouse_y = Math.round((e.clientY - rect.top) * scaleY);
+  };
+
+  const handelWheel = (e) => {
+
+    e.preventDefault();
+
+    console.log('Wheel rotated, deltaY:', e.deltaY);
+
+  };
+
+  const mouseDown = (e) => {
+
+    e.preventDefault();
+    console.log('Mouse Button pressed:', e.button);
+
+  };
+
 
   return (
     <div style={{ textAlign: 'center', margin: '1em' }}>
@@ -76,7 +101,15 @@ export default function App() {
         ref={canvasRef}
         width={1280}
         height={720}
-        style={{ border: '1px solid #000', backgroundColor: '#7b7b7b' }}
+        onMouseMove={handleMouseMove}
+        onWheel = {handelWheel}
+        onMouseDown = {mouseDown}
+        style={{
+          touchAction: 'none',
+          overscrollBehavior: 'contain',
+          border: '1px solid #000',
+          backgroundColor: '#7b7b7b'
+        }}
       />
 
       <br />

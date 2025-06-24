@@ -43,7 +43,6 @@ class GenesisSceneVideoStream:
                     self._last_frame = np.copy(frame)
                     yield frame
                     #step
-                    self.zoom_camera(x = 0.5, y =0.5, amount= 0.01)
                     self.scene.step()
                     i+=1
 
