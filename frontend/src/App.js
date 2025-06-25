@@ -5,8 +5,6 @@ import { io } from 'socket.io-client';
 
 const SERVER = 'http://127.0.0.1:5001';
 
-var mouse_x, mouse_y;
-
 export default function App() {
   const canvasRef = useRef(null);
   const socketRef = useRef(null);
@@ -15,13 +13,14 @@ export default function App() {
 
   useEffect(() => {
     const canvas = canvasRef.current;
+    if (!canvas) return;
     const ctx = canvas.getContext('2d');
 
-    // gray placeholder
+    // Gray placeholder
     ctx.fillStyle = '#7b7b7b';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    // force a brand-new socket connection
+    // Initialize Socket.IO
     const socket = io(SERVER, {
       transports: ['polling', 'websocket'],
       forceNew: true,
@@ -33,12 +32,10 @@ export default function App() {
     socketRef.current = socket;
 
     let firstFrame = false;
-
-    socket.on('connect', () => console.log('socket connected:', socket.id));
+    socket.on('connect',    () => console.log('socket connected:', socket.id));
     socket.on('disconnect', () => console.log('socket disconnected'));
-    socket.on('connect_error', (err) => console.error('connect_error', err));
-
-    socket.on('frame', (buf) => {
+    socket.on('connect_error', err => console.error('connect_error', err));
+    socket.on('frame', buf => {
       if (!firstFrame) {
         firstFrame = true;
         setReady(true);
@@ -53,7 +50,44 @@ export default function App() {
       img.src = URL.createObjectURL(blob);
     });
 
-    return () => socket.disconnect();
+    // Handlers
+    const handleMouseMove = e => {
+      const rect = canvas.getBoundingClientRect();
+      const scaleX = canvas.width / rect.width;
+      const scaleY = canvas.height / rect.height;
+      const x = Math.round((e.clientX - rect.left) * scaleX);
+      const y = Math.round((e.clientY - rect.top) * scaleY);
+      console.log('Mouse position:', x, y);
+    };
+
+    const handleWheel = e => {
+      e.preventDefault();
+      console.log('Wheel rotated, deltaY:', e.deltaY);
+    };
+
+    const handleMouseDown = e => {
+      e.preventDefault();
+      console.log('Mouse button pressed:', e.button);
+    };
+
+    const handleContextMenu = e => {
+      e.preventDefault();
+    };
+
+    // Attach listeners
+    canvas.addEventListener('mousemove', handleMouseMove);
+    canvas.addEventListener('wheel', handleWheel, { passive: false });
+    canvas.addEventListener('mousedown', handleMouseDown, { passive: false });
+    canvas.addEventListener('contextmenu', handleContextMenu);
+
+    // Cleanup
+    return () => {
+      socket.disconnect();
+      canvas.removeEventListener('mousemove', handleMouseMove);
+      canvas.removeEventListener('wheel', handleWheel);
+      canvas.removeEventListener('mousedown', handleMouseDown);
+      canvas.removeEventListener('contextmenu', handleContextMenu);
+    };
   }, []);
 
   const togglePause = () => {
@@ -67,43 +101,14 @@ export default function App() {
       setIsPaused(true);
     }
   };
-  const handleMouseMove = (e) => {
-    const canvas = canvasRef.current;
-    const rect = canvas.getBoundingClientRect();
-    // account for any CSS scaling
-    const scaleX = canvas.width / rect.width;
-    const scaleY = canvas.height / rect.height;
-    mouse_x = Math.round((e.clientX - rect.left) * scaleX);
-    mouse_y = Math.round((e.clientY - rect.top) * scaleY);
-  };
-
-  const handelWheel = (e) => {
-
-    e.preventDefault();
-
-    console.log('Wheel rotated, deltaY:', e.deltaY);
-
-  };
-
-  const mouseDown = (e) => {
-
-    e.preventDefault();
-    console.log('Mouse Button pressed:', e.button);
-
-  };
-
 
   return (
     <div style={{ textAlign: 'center', margin: '1em' }}>
       {!ready && <p>Loading simulation…</p>}
-
       <canvas
         ref={canvasRef}
         width={1280}
         height={720}
-        onMouseMove={handleMouseMove}
-        onWheel = {handelWheel}
-        onMouseDown = {mouseDown}
         style={{
           touchAction: 'none',
           overscrollBehavior: 'contain',
@@ -111,9 +116,7 @@ export default function App() {
           backgroundColor: '#7b7b7b'
         }}
       />
-
       <br />
-
       {ready && (
         <button onClick={togglePause} style={{ padding: '8px 16px' }}>
           {isPaused ? 'Resume Simulation' : 'Pause Simulation'}
