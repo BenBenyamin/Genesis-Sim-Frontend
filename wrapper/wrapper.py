@@ -47,37 +47,44 @@ class GenesisSceneVideoStream:
                     i+=1
 
 
-        def rotate_camera(self, angle_x=0, angle_y=0, angle_z=0, degrees=False):
-            # Build rotation matrix in camera local frame
-            rot = R.from_euler('xyz', (angle_x, angle_y, angle_z), degrees=degrees).as_matrix()
-
-            # Fetch camera vectors
+        def rotate_camera(self, angle_x=0, angle_y=0, degrees=False):
+            """Proper orbit rotation around lookat target"""
+            # Convert to radians if needed
+            if degrees:
+                angle_x = np.radians(angle_x)
+                angle_y = np.radians(angle_y)
+            
+            # Get current vectors
             pos = np.array(self.cam.pos)
-            lookat = np.array(self.cam.lookat)
+            target = np.array(self.cam.lookat)
             up = np.array(self.cam.up)
-
-            # Compute camera frame basis
-            forward = lookat - pos
-            forward /= np.linalg.norm(forward)
-            right = np.cross(forward, up)
-            right /= np.linalg.norm(right)
-            up = np.cross(right, forward)  # re-orthogonalize
-
-            # Form camera rotation matrix (columns = right, up, -forward)
-            cam_frame = np.column_stack((right, up, -forward))
-
-            # Apply rotation in local camera frame
-            rotated_frame = cam_frame @ rot.T  # rotate camera axes
-
-            # Update camera orientation
-            new_forward = -rotated_frame[:, 2]
-            new_up = rotated_frame[:, 1]
-            new_lookat = pos + new_forward
-            # Set camera pose
-            self.cam.set_pose(pos=pos.tolist(),
-                            lookat=new_lookat.tolist(),
-                            up=new_up.tolist())
-        
+            
+            # 1. Calculate radius (distance from target)
+            radius = np.linalg.norm(pos - target)
+            
+            # 2. Calculate spherical coordinates
+            direction = (pos - target) / radius
+            theta = np.arccos(direction[1])  # Polar angle (from Y)
+            phi = np.arctan2(direction[2], direction[0])  # Azimuthal angle
+            
+            # 3. Apply new angles (invert some for intuitive controls)
+            theta = np.clip(theta - angle_x, 0.1, np.pi-0.1)  # Prevent flipping
+            phi -= angle_y
+            
+            # 4. Calculate new position
+            new_pos = np.array([
+                radius * np.sin(theta) * np.cos(phi),
+                radius * np.cos(theta),
+                radius * np.sin(theta) * np.sin(phi)
+            ]) + target
+            
+            # 5. Update camera (automatically handles lookat/up)
+            self.cam.set_pose(
+                pos=new_pos.tolist(),
+                lookat=target.tolist(),
+                up=up.tolist()  # Or calculate new up if needed
+            )
+            
 
         def pan_camera(self, dx=0, dy=0):
 

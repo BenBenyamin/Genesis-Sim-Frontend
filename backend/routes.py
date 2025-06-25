@@ -109,11 +109,9 @@ def handle_interaction(data):
     if (mouse_button):  # When button is pressed
         if (prev_x is not None and prev_y is not None):  # Check if we have previous coordinates
             d_vect = np.array([mouse_x - prev_x, mouse_y - prev_y])
-            d_norm = np.linalg.norm(d_vect)
-            if d_norm >= 10:
-                rot_dir = 100.0* d_vect / d_norm
-                wrap.rotate_camera(angle_x=rot_dir[1],angle_y=rot_dir[0] ,degrees=True)
-        
+            rot_dir = 0.5* d_vect
+            wrap.rotate_camera(angle_x=rot_dir[0],angle_y=rot_dir[1] ,degrees=True)
+    
         # Update previous coordinates regardless of movement
         prev_x = mouse_x
         prev_y = mouse_y
