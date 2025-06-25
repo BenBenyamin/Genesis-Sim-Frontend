@@ -26,6 +26,8 @@ _blank = np.zeros((720, 1280, 3), dtype=np.uint8)
 _, blank_buf = cv2.imencode('.jpg', _blank)
 blank_bytes = blank_buf.tobytes()
 
+mouse_x =  mouse_y = wheel = button = 0
+
 # ─── Build the simulation in the background ───────────────────────────────────
 simulation_ready = False
 wrap = None
@@ -83,8 +85,10 @@ def on_resume():
     wrap.paused = False
 
 
+@socketio.on('user_interaction')
+def handle_interaction(data):
 
-
+    print(data, flush = True)
 # ─── Run server ────────────────────────────────────────────────────────────────
 if __name__ == '__main__':
     socketio.run(app,

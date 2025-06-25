@@ -58,16 +58,20 @@ export default function App() {
       const x = Math.round((e.clientX - rect.left) * scaleX);
       const y = Math.round((e.clientY - rect.top) * scaleY);
       console.log('Mouse position:', x, y);
+      socket.emit('user_interaction', { x, y });
     };
 
     const handleWheel = e => {
       e.preventDefault();
       console.log('Wheel rotated, deltaY:', e.deltaY);
+      socket.emit('user_interaction', { wheelDelta: e.deltaY });
     };
 
     const handleMouseDown = e => {
       e.preventDefault();
       console.log('Mouse button pressed:', e.button);
+
+      socket.emit('user_interaction', { button: e.button });
     };
 
     const handleContextMenu = e => {
