@@ -31,7 +31,7 @@ class GenesisSceneVideoStream:
         def get_frame(self):
             while True:
                 self.scene.reset()
-                self.paused = True
+                # self.paused = True
                 i =0
                 while (i < self.n_frames):
                     if self.paused:
@@ -111,46 +111,48 @@ class GenesisSceneVideoStream:
         
         def zoom_camera(self, x, y, amount=0.1):
 
-            # Get intrinsic matrix
-            K = self.cam.intrinsics
+            # Intrinsic parameters
+            K  = self.cam.intrinsics
             fx = K[0, 0]
             fy = K[1, 1]
             cx = K[0, 2]
             cy = K[1, 2]
 
-            px = x*self.cam.res[0]
-            py = y*self.cam.res[1]
-
-            # Compute ray in camera space
+            # Ray direction in camera space
+            px = x
+            py = y
             cam_dir = np.array([(px - cx) / fx,
                                 (py - cy) / fy,
                                 1.0])
             cam_dir /= np.linalg.norm(cam_dir)
 
-            # Camera pose vectors
-            pos = np.array(self.cam.pos)
-            lookat = np.array(self.cam.lookat)
-            up = np.array(self.cam.up)
+            # Current camera pose
+            pos     = np.array(self.cam.pos)
+            lookat  = np.array(self.cam.lookat)
+            up      = np.array(self.cam.up)
 
+            # Build camera basis vectors
             forward = lookat - pos
             forward /= np.linalg.norm(forward)
-            right = np.cross(forward, up)
-            right /= np.linalg.norm(right)
-            up = np.cross(right, forward)
+            right   = np.cross(forward, up)
+            right   /= np.linalg.norm(right)
+            up       = np.cross(right, forward)
 
-            # Compose camera rotation matrix
-            cam_rot = np.column_stack((right, up, forward))
-
-            # Rotate ray to world coordinates
+            # Rotate camera‐space ray into world space
+            cam_rot   = np.column_stack((right, up, forward))
             world_dir = cam_rot @ cam_dir
 
-            # Move camera position along ray by amount
-            new_pos = pos + world_dir * amount
+            # Compute translation delta
+            delta      = world_dir * amount
+            new_pos    = pos + delta
+            new_lookat = lookat + delta
 
-            # Optionally adjust lookat for smoother zoom
-            # For example, move halfway to avoid clipping
-            new_lookat = lookat  # or lookat + world_dir * amount * 0.5
+            # Apply new pose
+            self.cam.set_pose(
+                pos=new_pos.tolist(),
+                lookat=new_lookat.tolist(),
+                up=up.tolist()
+            )
 
-            self.cam.set_pose(pos=new_pos.tolist(), lookat=new_lookat.tolist(), up=up.tolist())
 
 

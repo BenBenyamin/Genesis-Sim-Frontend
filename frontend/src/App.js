@@ -10,6 +10,7 @@ export default function App() {
   const socketRef = useRef(null);
   const [isPaused, setIsPaused] = useState(true);
   const [ready, setReady] = useState(false);
+  const activeButton = useRef(null);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -57,8 +58,9 @@ export default function App() {
       const scaleY = canvas.height / rect.height;
       const x = Math.round((e.clientX - rect.left) * scaleX);
       const y = Math.round((e.clientY - rect.top) * scaleY);
-      console.log('Mouse position:', x, y);
-      socket.emit('user_interaction', { x, y });
+      console.log('Mouse position:', x, y , activeButton.current);
+      socket.emit('user_interaction', { x, y ,button:activeButton.current});
+      
     };
 
     const handleWheel = e => {
@@ -69,13 +71,17 @@ export default function App() {
 
     const handleMouseDown = e => {
       e.preventDefault();
+      activeButton.current = e.button;
       console.log('Mouse button pressed:', e.button);
-
-      socket.emit('user_interaction', { button: e.button });
+      
     };
 
     const handleContextMenu = e => {
       e.preventDefault();
+    };
+
+    const handleMouseUp = () => {
+      activeButton.current = null;
     };
 
     // Attach listeners
@@ -83,6 +89,7 @@ export default function App() {
     canvas.addEventListener('wheel', handleWheel, { passive: false });
     canvas.addEventListener('mousedown', handleMouseDown, { passive: false });
     canvas.addEventListener('contextmenu', handleContextMenu);
+    canvas.addEventListener('mouseup', handleMouseUp);
 
     // Cleanup
     return () => {
@@ -91,6 +98,7 @@ export default function App() {
       canvas.removeEventListener('wheel', handleWheel);
       canvas.removeEventListener('mousedown', handleMouseDown);
       canvas.removeEventListener('contextmenu', handleContextMenu);
+      canvas.removeEventListener('mouseup', handleMouseUp);
     };
   }, []);
 

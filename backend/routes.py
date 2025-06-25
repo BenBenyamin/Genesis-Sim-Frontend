@@ -26,8 +26,8 @@ _blank = np.zeros((720, 1280, 3), dtype=np.uint8)
 _, blank_buf = cv2.imencode('.jpg', _blank)
 blank_bytes = blank_buf.tobytes()
 
-mouse_x =  mouse_y = wheel = button = 0
-
+mouse_x = mouse_y = 0
+prev_x= prev_y = 0
 # ─── Build the simulation in the background ───────────────────────────────────
 simulation_ready = False
 wrap = None
@@ -88,7 +88,42 @@ def on_resume():
 @socketio.on('user_interaction')
 def handle_interaction(data):
 
-    print(data, flush = True)
+    if (wrap.paused): return
+
+    global mouse_x, mouse_y ,prev_x,prev_y
+    mouse_x = data.get("x",mouse_x)
+    mouse_y = data.get("y",mouse_y)
+    mouse_wheel = data.get('wheelDelta', 0)
+    mouse_button = data.get('button')
+
+    print(f"{mouse_x,mouse_y}, button : {mouse_button} , wheel: {mouse_wheel}",flush=True)
+    
+    ## zoom
+    if (mouse_wheel):
+
+        wheel_dir = 1 if mouse_wheel > 0 else -1 
+        wrap.zoom_camera(mouse_x,mouse_y,amount=0.1*wheel_dir)
+        return
+    
+    #rotate
+    if (mouse_button):  # When button is pressed
+        if (prev_x is not None and prev_y is not None):  # Check if we have previous coordinates
+            d_vect = np.array([mouse_x - prev_x, mouse_y - prev_y])
+            d_norm = np.linalg.norm(d_vect)
+            if d_norm >= 10:
+                rot_dir = 100.0* d_vect / d_norm
+                wrap.rotate_camera(angle_x=rot_dir[1],angle_y=rot_dir[0] ,degrees=True)
+        
+        # Update previous coordinates regardless of movement
+        prev_x = mouse_x
+        prev_y = mouse_y
+    else:
+        # Reset previous coordinates when button is not pressed
+        prev_x = None
+        prev_y = None
+
+
+
 # ─── Run server ────────────────────────────────────────────────────────────────
 if __name__ == '__main__':
     socketio.run(app,

@@ -28,6 +28,7 @@ def get_sim():
             camera_up=(0, 0, 1),
         ),
         show_viewer=args.vis,
+        show_FPS=False
     )
 
     ########################## materials ##########################
