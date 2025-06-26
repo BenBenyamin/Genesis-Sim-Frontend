@@ -33,7 +33,7 @@ class GenesisSceneVideoStream:
         def get_frame(self):
             while True:
                 self.scene.reset()
-                # self.paused = True
+                self.paused = True
                 i =0
                 while (i < self.n_frames):
                     if self.paused:
