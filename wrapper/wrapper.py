@@ -11,7 +11,7 @@ class GenesisSceneVideoStream:
             self.fps = fps
             self.paused = True
 
-            self.cam = self.scene._visualizer._cameras[-1]
+            self.cam = self.scene._visualizer._cameras[-1] ## take the last camera added to the list
             res = self.cam.res
             self.pos = self.cam.pos
             self.lookat = self.cam.lookat
@@ -33,7 +33,6 @@ class GenesisSceneVideoStream:
         def get_frame(self):
             while True:
                 self.scene.reset()
-                self.reset_cam()
                 # self.paused = True
                 i =0
                 while (i < self.n_frames):

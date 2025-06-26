@@ -71,7 +71,7 @@ def on_connect():
     if simulation_ready:
         emit('ready')
 
-    print("👤 Client connected; starting stream task.")
+    print(" Client connected; starting stream task.")
     socketio.emit('frame', blank_bytes)
     socketio.start_background_task(emit_frames)
 
@@ -96,7 +96,7 @@ def handle_interaction(data):
     mouse_wheel = data.get('wheelDelta', 0)
     mouse_button = data.get('button')
 
-    print(f"{mouse_x,mouse_y}, button : {mouse_button} , wheel: {mouse_wheel}",flush=True)
+    # print(f"{mouse_x,mouse_y}, button : {mouse_button} , wheel: {mouse_wheel}",flush=True)
     
     ## zoom
     if (mouse_wheel):
@@ -110,8 +110,10 @@ def handle_interaction(data):
         if (prev_x is not None and prev_y is not None):  # Check if we have previous coordinates
             d_vect = np.array([mouse_x - prev_x, mouse_y - prev_y])
             rot_dir = 0.5* d_vect
-            wrap.rotate_camera(angle_x=rot_dir[0],angle_y=rot_dir[1] ,degrees=True)
-    
+            if (mouse_button == 1):
+                wrap.rotate_camera(angle_x=rot_dir[0],angle_y=rot_dir[1] ,degrees=True)
+            elif (mouse_button == 2):
+                wrap.pan_camera(dx=-0.005*d_vect[0],dy = 0.005*d_vect[1])
         # Update previous coordinates regardless of movement
         prev_x = mouse_x
         prev_y = mouse_y
@@ -119,6 +121,14 @@ def handle_interaction(data):
         # Reset previous coordinates when button is not pressed
         prev_x = None
         prev_y = None
+
+    
+    # pan
+
+@socketio.on('reset_cam')
+def reset_cam():
+
+    wrap.reset_cam()
 
 
 

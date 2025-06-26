@@ -58,9 +58,8 @@ export default function App() {
       const scaleY = canvas.height / rect.height;
       const x = Math.round((e.clientX - rect.left) * scaleX);
       const y = Math.round((e.clientY - rect.top) * scaleY);
-      console.log('Mouse position:', x, y , activeButton.current);
-      socket.emit('user_interaction', { x, y ,button:activeButton.current});
-      
+      console.log('Mouse position:', x, y, activeButton.current);
+      socket.emit('user_interaction', { x, y, button: activeButton.current });
     };
 
     const handleWheel = e => {
@@ -73,23 +72,22 @@ export default function App() {
       e.preventDefault();
       activeButton.current = e.button;
       console.log('Mouse button pressed:', e.button);
-      
-    };
-
-    const handleContextMenu = e => {
-      e.preventDefault();
     };
 
     const handleMouseUp = () => {
       activeButton.current = null;
     };
 
+    const handleContextMenu = e => {
+      e.preventDefault();
+    };
+
     // Attach listeners
     canvas.addEventListener('mousemove', handleMouseMove);
     canvas.addEventListener('wheel', handleWheel, { passive: false });
     canvas.addEventListener('mousedown', handleMouseDown, { passive: false });
-    canvas.addEventListener('contextmenu', handleContextMenu);
     canvas.addEventListener('mouseup', handleMouseUp);
+    canvas.addEventListener('contextmenu', handleContextMenu);
 
     // Cleanup
     return () => {
@@ -97,8 +95,8 @@ export default function App() {
       canvas.removeEventListener('mousemove', handleMouseMove);
       canvas.removeEventListener('wheel', handleWheel);
       canvas.removeEventListener('mousedown', handleMouseDown);
-      canvas.removeEventListener('contextmenu', handleContextMenu);
       canvas.removeEventListener('mouseup', handleMouseUp);
+      canvas.removeEventListener('contextmenu', handleContextMenu);
     };
   }, []);
 
@@ -111,6 +109,13 @@ export default function App() {
     } else {
       sock.emit('pause');
       setIsPaused(true);
+    }
+  };
+
+  const handleResetCam = () => {
+    const sock = socketRef.current;
+    if (sock && sock.connected) {
+      sock.emit('reset_cam');
     }
   };
 
@@ -130,9 +135,17 @@ export default function App() {
       />
       <br />
       {ready && (
-        <button onClick={togglePause} style={{ padding: '8px 16px' }}>
-          {isPaused ? 'Resume Simulation' : 'Pause Simulation'}
-        </button>
+        <>
+          <button onClick={togglePause} style={{ padding: '8px 16px' }}>
+            {isPaused ? 'Resume Simulation' : 'Pause Simulation'}
+          </button>
+          <button
+            onClick={handleResetCam}
+            style={{ padding: '8px 16px', marginLeft: '8px' }}
+          >
+            Reset Camera
+          </button>
+        </>
       )}
     </div>
   );
