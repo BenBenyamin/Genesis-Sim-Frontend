@@ -10,27 +10,30 @@ class GenesisSceneVideoStream:
             self.n_frames = n_frames
             self.fps = fps
             self.paused = True
-            self._last_frame = np.zeros((720, 1280, 3), dtype=np.uint8)
 
-            self.cam = self.scene.add_camera(
-                res=(1280, 720),
-                pos=(3.5, 1.0, 2.5),
-                lookat=(0, 0, 0.5),
-                fov=40,
-                GUI=False,
-            )
+            self.cam = self.scene._visualizer._cameras[-1]
+            res = self.cam.res
+            self.pos = self.cam.pos
+            self.lookat = self.cam.lookat
 
-            self.pos = np.array((3.5, 0.0, 2.5))
-            self.lookat = np.array((0.0, 0.0, 0.5))
+            self._last_frame = np.zeros((res[0], res[1], 3), dtype=np.uint8)
 
             self.scene.build()
             # self.scene.reset()
 
             print("Loaded the simulation!", flush=True)
         
+        def reset_cam(self):
+
+            self.cam.set_pose(
+                pos = self.pos,
+                lookat = self.lookat,
+            )
+
         def get_frame(self):
             while True:
                 self.scene.reset()
+                self.reset_cam()
                 # self.paused = True
                 i =0
                 while (i < self.n_frames):
@@ -48,7 +51,6 @@ class GenesisSceneVideoStream:
 
 
         def rotate_camera(self, angle_x=0, angle_y=0, degrees=False):
-            """Proper orbit rotation around lookat target"""
             # Convert to radians if needed
             if degrees:
                 angle_x = np.radians(angle_x)
@@ -59,26 +61,26 @@ class GenesisSceneVideoStream:
             target = np.array(self.cam.lookat)
             up = np.array(self.cam.up)
             
-            # 1. Calculate radius (distance from target)
+            # Calculate radius (distance from target)
             radius = np.linalg.norm(pos - target)
             
-            # 2. Calculate spherical coordinates
+            #Calculate spherical coordinates
             direction = (pos - target) / radius
             theta = np.arccos(direction[1])  # Polar angle (from Y)
             phi = np.arctan2(direction[2], direction[0])  # Azimuthal angle
             
-            # 3. Apply new angles (invert some for intuitive controls)
+            # Apply new angles (invert some for intuitive controls)
             theta = np.clip(theta - angle_x, 0.1, np.pi-0.1)  # Prevent flipping
             phi -= angle_y
             
-            # 4. Calculate new position
+            #Calculate new position
             new_pos = np.array([
                 radius * np.sin(theta) * np.cos(phi),
                 radius * np.cos(theta),
                 radius * np.sin(theta) * np.sin(phi)
             ]) + target
             
-            # 5. Update camera (automatically handles lookat/up)
+            #Update camera (automatically handles lookat/up)
             self.cam.set_pose(
                 pos=new_pos.tolist(),
                 lookat=target.tolist(),

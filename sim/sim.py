@@ -31,6 +31,16 @@ def get_sim():
         show_FPS=False
     )
 
+    cam_options = {
+        "res": (1280, 720),
+        "pos": (3.5, 1.0, 2.5),
+        "lookat": (0, 0, 0.5),
+        "fov": 40,
+        "GUI": False,
+                    }
+    
+    scene.add_camera(**cam_options)
+
     ########################## materials ##########################
     mat_elastic = gs.materials.PBD.Elastic()
 
